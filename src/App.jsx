@@ -3,6 +3,17 @@ import { supabase } from "./supabaseClient";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 
+/* ================= DURATE ESATTE ================= */
+
+const DURATE_SERVIZI = {
+  "Taglio": 30,
+  "Taglio e barba": 45,
+  "Taglio e piega": 75,
+  "Taglio piega e colore": 125,
+  "Piega e colore": 90,
+  "Piega": 30
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -57,9 +68,7 @@ export default function App() {
     }
   };
 
-  // -------------------------
-  // ORARI
-  // -------------------------
+  /* ================= ORARI 15 MINUTI ================= */
 
   const generaOrari = () => {
     if (!form.data) return [];
@@ -71,10 +80,11 @@ export default function App() {
     let end = 20;
     let orari = [];
 
-    for (let i = start; i < end; i += 0.5) {
+    for (let i = start; i < end; i += 0.25) {
       let ore = Math.floor(i);
-      let minuti = i % 1 === 0 ? "00" : "30";
-      let slot = `${ore}:${minuti}`;
+      let minuti = Math.round((i % 1) * 60);
+      let minutiStr = minuti === 0 ? "00" : minuti.toString().padStart(2, "0");
+      let slot = `${ore}:${minutiStr}`;
 
       if (!occupiedSlots.includes(slot)) {
         orari.push(slot);
@@ -87,17 +97,31 @@ export default function App() {
   const fetchOccupiedSlots = async () => {
     const { data } = await supabase
       .from("prenotazioni")
-      .select("ora")
+      .select("*")
       .eq("data", form.data)
       .eq("parrucchiere", form.parrucchiere)
-      .eq("stato", "accettata");
+      .neq("stato", "rifiutata");
 
-    setOccupiedSlots(data?.map(p => p.ora) || []);
+    let slots = [];
+
+    data?.forEach(p => {
+      const durata = DURATE_SERVIZI[p.servizio];
+      const [h, m] = p.ora.split(":").map(Number);
+      let start = h * 60 + m;
+
+      for (let i = 0; i < durata; i += 15) {
+        let tot = start + i;
+        let hh = Math.floor(tot / 60);
+        let mm = tot % 60;
+        let mmStr = mm.toString().padStart(2, "0");
+        slots.push(`${hh}:${mmStr}`);
+      }
+    });
+
+    setOccupiedSlots(slots);
   };
 
-  // -------------------------
-  // PRENOTAZIONE
-  // -------------------------
+  /* ================= PRENOTAZIONE ================= */
 
   const prenota = async () => {
     if (
@@ -118,24 +142,37 @@ export default function App() {
       return;
     }
 
+    const durata = DURATE_SERVIZI[form.servizio];
+    const [h, m] = form.ora.split(":").map(Number);
+    let start = h * 60 + m;
+
     const { data: existing } = await supabase
       .from("prenotazioni")
       .select("*")
       .eq("data", form.data)
-      .eq("ora", form.ora)
       .eq("parrucchiere", form.parrucchiere)
-      .eq("stato", "accettata");
+      .neq("stato", "rifiutata");
 
-    if (existing.length > 0) {
-      alert("Questo orario è già occupato.");
-      return;
+    for (let p of existing) {
+      const durataEsistente = DURATE_SERVIZI[p.servizio];
+      const [h2, m2] = p.ora.split(":").map(Number);
+      let start2 = h2 * 60 + m2;
+      let end2 = start2 + durataEsistente;
+
+      if (start < end2 && start + durata > start2) {
+        alert("Questo parrucchiere è occupato in quell'orario.");
+        return;
+      }
     }
 
     await supabase.from("prenotazioni").insert([
-      { ...form, user_id: user.id }
+      { ...form, user_id: user.id, stato: "in attesa" }
     ]);
 
     alert("Prenotazione inviata!");
+
+    fetchOccupiedSlots();
+    fetchMiePrenotazioni(user.id);
 
     setForm({
       nome: "",
@@ -145,8 +182,6 @@ export default function App() {
       data: "",
       ora: ""
     });
-
-    fetchMiePrenotazioni(user.id);
   };
 
   const fetchMiePrenotazioni = async (id) => {
@@ -169,23 +204,6 @@ export default function App() {
   };
 
   const updateStato = async (id, stato) => {
-    if (stato === "accettata") {
-      const prenotazione = prenotazioni.find(p => p.id === id);
-
-      const { data: existing } = await supabase
-        .from("prenotazioni")
-        .select("*")
-        .eq("data", prenotazione.data)
-        .eq("ora", prenotazione.ora)
-        .eq("parrucchiere", prenotazione.parrucchiere)
-        .eq("stato", "accettata");
-
-      if (existing.length > 0) {
-        alert("Slot già occupato!");
-        return;
-      }
-    }
-
     await supabase
       .from("prenotazioni")
       .update({ stato })
@@ -201,7 +219,7 @@ export default function App() {
 
   if (!user) return <Auth onLogin={checkUser} />;
 
-  // ================= ADMIN =================
+  /* ================= ADMIN ================= */
 
   if (role === "admin")
     return (
@@ -213,27 +231,13 @@ export default function App() {
             <p className="font-bold text-lg">{p.nome}</p>
             <p>{p.servizio} - {p.parrucchiere}</p>
             <p>{p.data} • {p.ora}</p>
-            <p className={`mt-2 font-semibold ${
-              p.stato === "accettata"
-                ? "text-green-600"
-                : p.stato === "rifiutata"
-                ? "text-red-600"
-                : "text-yellow-600"
-            }`}>
-              {p.stato}
-            </p>
+            <p className="mt-2 font-semibold">{p.stato}</p>
 
             <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => updateStato(p.id, "accettata")}
-                className="bg-green-600 text-white px-3 py-1 rounded-lg"
-              >
+              <button onClick={() => updateStato(p.id, "accettata")} className="bg-green-600 text-white px-3 py-1 rounded-lg">
                 Accetta
               </button>
-              <button
-                onClick={() => updateStato(p.id, "rifiutata")}
-                className="bg-red-600 text-white px-3 py-1 rounded-lg"
-              >
+              <button onClick={() => updateStato(p.id, "rifiutata")} className="bg-red-600 text-white px-3 py-1 rounded-lg">
                 Rifiuta
               </button>
             </div>
@@ -246,7 +250,7 @@ export default function App() {
       </div>
     );
 
-  // ================= USER =================
+  /* ================= USER ================= */
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6">
@@ -258,29 +262,30 @@ export default function App() {
           Prenota il tuo appuntamento
         </h2>
 
-        <input
-          className="w-full border p-2 mb-3 rounded-lg"
+        <input className="w-full border p-2 mb-3 rounded-lg"
           placeholder="Nome"
           value={form.nome}
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
         />
 
-        <input
-          className="w-full border p-2 mb-3 rounded-lg"
+        <input className="w-full border p-2 mb-3 rounded-lg"
           placeholder="Telefono"
           value={form.telefono}
           onChange={(e) => setForm({ ...form, telefono: e.target.value })}
         />
 
-        <input
-          className="w-full border p-2 mb-3 rounded-lg"
-          placeholder="Servizio"
-          value={form.servizio}
-          onChange={(e) => setForm({ ...form, servizio: e.target.value })}
-        />
-
         <select
           className="w-full border p-2 mb-3 rounded-lg"
+          value={form.servizio}
+          onChange={(e) => setForm({ ...form, servizio: e.target.value })}
+        >
+          <option value="">Seleziona servizio</option>
+          {Object.keys(DURATE_SERVIZI).map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </select>
+
+        <select className="w-full border p-2 mb-3 rounded-lg"
           value={form.parrucchiere}
           onChange={(e) => setForm({ ...form, parrucchiere: e.target.value })}
         >
@@ -293,15 +298,11 @@ export default function App() {
         <Calendar
           minDate={new Date()}
           onChange={(date) =>
-            setForm({
-              ...form,
-              data: date.toISOString().split("T")[0]
-            })
+            setForm({ ...form, data: date.toISOString().split("T")[0] })
           }
         />
 
-        <select
-          className="w-full border p-2 mt-3 rounded-lg"
+        <select className="w-full border p-2 mt-3 rounded-lg"
           value={form.ora}
           onChange={(e) => setForm({ ...form, ora: e.target.value })}
         >
@@ -311,10 +312,8 @@ export default function App() {
           ))}
         </select>
 
-        <button
-          onClick={prenota}
-          className="w-full bg-black text-white p-3 mt-4 rounded-xl hover:opacity-90 transition"
-        >
+        <button onClick={prenota}
+          className="w-full bg-black text-white p-3 mt-4 rounded-xl">
           Prenota
         </button>
 
@@ -328,7 +327,8 @@ export default function App() {
           </div>
         ))}
 
-        <button onClick={signOut} className="w-full mt-6 bg-gray-300 p-2 rounded-xl">
+        <button onClick={signOut}
+          className="w-full mt-6 bg-gray-300 p-2 rounded-xl">
           Logout
         </button>
       </div>
@@ -336,7 +336,7 @@ export default function App() {
   );
 }
 
-// ================= AUTH =================
+/* ================= AUTH ================= */
 
 function Auth({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -356,21 +356,21 @@ function Auth({ onLogin }) {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-6 rounded-2xl shadow-xl w-80">
         <img src="/logo.jpg" className="w-16 mx-auto mb-4" />
-        <input
-          className="w-full border p-2 mb-2 rounded-lg"
+        <input className="w-full border p-2 mb-2 rounded-lg"
           placeholder="Email"
           onChange={(e) => setEmail(e.target.value)}
         />
-        <input
-          type="password"
+        <input type="password"
           className="w-full border p-2 mb-4 rounded-lg"
           placeholder="Password"
           onChange={(e) => setPassword(e.target.value)}
         />
-        <button onClick={login} className="w-full bg-black text-white p-2 mb-2 rounded-lg">
+        <button onClick={login}
+          className="w-full bg-black text-white p-2 mb-2 rounded-lg">
           Login
         </button>
-        <button onClick={register} className="w-full bg-gray-200 p-2 rounded-lg">
+        <button onClick={register}
+          className="w-full bg-gray-200 p-2 rounded-lg">
           Registrati
         </button>
       </div>
