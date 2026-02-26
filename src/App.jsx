@@ -33,7 +33,42 @@ export default function App() {
   useEffect(() => {
     checkUser();
   }, []);
+useEffect(() => {
+  const registerPush = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
+    // ✅ SOLO se aperto dalla Home (fondamentale per iPhone)
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    if (!isStandalone) return;
+
+    const registration = await navigator.serviceWorker.register("/sw.js");
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    // ✅ Evita doppie registrazioni
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) return;
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: "BPnchfwJTwabIDTXJOMupw-ydZ-kURHsZIAKrFpcX2IET_0etPwIFyhlY4HmrPRiEv1roXWZdybyiqBZo14_GlY"
+    });
+
+    await supabase.from("subscriptions").insert([
+      {
+        endpoint: subscription.endpoint,
+        p256dh: subscription.toJSON().keys.p256dh,
+        auth: subscription.toJSON().keys.auth
+      }
+    ]);
+  };
+
+  registerPush();
+}, []);
   useEffect(() => {
     if (form.data && form.parrucchiere) {
       fetchOccupiedSlots();
