@@ -220,6 +220,21 @@ const generaOrari = () => {
     await supabase.auth.signOut();
     location.reload();
   };
+  function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
+}
 const attivaNotifiche = async () => {
   if (!user) {
     alert("Devi essere loggato");
@@ -246,11 +261,12 @@ const attivaNotifiche = async () => {
       return;
     }
 
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey:
-        "BPnchfwJTwabIDTXJOMupw-ydZ-kURHsZIAKrFpcX2IET_0etPwIFyhlY4HmrPRiEv1roXWZdybyiqBZo14_GlY"
-    });
+const subscription = await registration.pushManager.subscribe({
+  userVisibleOnly: true,
+  applicationServerKey: urlBase64ToUint8Array(
+    "BPnchfwJTwabIDTXJOMupw-ydZ-kURHsZIAKrFpcX2IET_0etPwIFyhlY4HmrPRiEv1roXWZdybyiqBZo14_GlY"
+  )
+});
 
     const { error } = await supabase
       .from("subscriptions")
