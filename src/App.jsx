@@ -233,6 +233,7 @@ const generaOrari = () => {
         {prenotazioni.map((p) => (
           <div key={p.id} className="bg-white p-5 mb-4 rounded-xl shadow-lg">
             <p className="font-bold text-lg">{p.nome}</p>
+            <p className="text-gray-600">📞 {p.telefono}</p>
             <p>{p.servizio} - {p.parrucchiere}</p>
             <p>{p.data} • {p.ora}</p>
             <p className="mt-2 font-semibold">{p.stato}</p>
