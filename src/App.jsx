@@ -221,41 +221,58 @@ const generaOrari = () => {
     location.reload();
   };
 const attivaNotifiche = async () => {
+  if (!user) {
+    alert("Devi essere loggato");
+    return;
+  }
+
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     alert("Push non supportate");
     return;
   }
 
-  const registration = await navigator.serviceWorker.register("/sw.js");
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
 
-  const permission = await Notification.requestPermission();
-
-  if (permission !== "granted") {
-    alert("Permesso negato");
-    return;
-  }
-
-  const existing = await registration.pushManager.getSubscription();
-  if (existing) {
-    alert("Notifiche già attive");
-    return;
-  }
-
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: "BPnchfwJTwabIDTXJOMupw-ydZ-kURHsZIAKrFpcX2IET_0etPwIFyhlY4HmrPRiEv1roXWZdybyiqBZo14_GlY"
-  });
-
-  await supabase.from("subscriptions").insert([
-    {
-      user_id: user.id,
-      endpoint: subscription.endpoint,
-      p256dh: subscription.toJSON().keys.p256dh,
-      auth: subscription.toJSON().keys.auth
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("Permesso negato");
+      return;
     }
-  ]);
 
-  alert("Notifiche attivate correttamente 🔥");
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) {
+      alert("Notifiche già attive");
+      return;
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey:
+        "BPnchfwJTwabIDTXJOMupw-ydZ-kURHsZIAKrFpcX2IET_0etPwIFyhlY4HmrPRiEv1roXWZdybyiqBZo14_GlY"
+    });
+
+    const { error } = await supabase
+      .from("subscriptions")
+      .insert([
+        {
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh: subscription.toJSON().keys.p256dh,
+          auth: subscription.toJSON().keys.auth
+        }
+      ]);
+
+    if (error) {
+      console.log("ERRORE SUPABASE:", error);
+      alert("Errore salvataggio");
+      return;
+    }
+
+    alert("Notifiche attivate 🔥");
+  } catch (err) {
+    console.log("ERRORE:", err);
+  }
 };
 
   if (!user) return <Auth onLogin={checkUser} />;
