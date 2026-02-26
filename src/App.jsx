@@ -75,19 +75,19 @@ const generaOrari = () => {
 
   const giorno = new Date(form.data).getDay();
 
-  // Domenica (0) e Lunedì (1) chiuso
+  // Domenica (0) e Lunedì (1) chiusi
   if (giorno === 0 || giorno === 1) return [];
 
-  // Sabato 7:30 - 20, altri giorni 8 - 20
-  let start = giorno === 6 ? 7.5 : 8;
-  let end = 20;
+  // Sabato inizia alle 7:30
+  let startMinutes = giorno === 6 ? 7 * 60 + 30 : 8 * 60;
+  let endMinutes = 20 * 60;
 
   let orari = [];
 
-  for (let i = start; i < end; i += 0.25) {
-    let ore = Math.floor(i);
-    let minuti = Math.round((i % 1) * 60);
-    let minutiStr = minuti === 0 ? "00" : minuti.toString().padStart(2, "0");
+  for (let i = startMinutes; i < endMinutes; i += 15) {
+    let ore = Math.floor(i / 60);
+    let minuti = i % 60;
+    let minutiStr = minuti.toString().padStart(2, "0");
     let slot = `${ore}:${minutiStr}`;
 
     if (!occupiedSlots.includes(slot)) {
@@ -97,6 +97,33 @@ const generaOrari = () => {
 
   return orari;
 };
+
+  const fetchOccupiedSlots = async () => {
+    const { data } = await supabase
+      .from("prenotazioni")
+      .select("*")
+      .eq("data", form.data)
+      .eq("parrucchiere", form.parrucchiere)
+      .neq("stato", "rifiutata");
+
+    let slots = [];
+
+    data?.forEach(p => {
+      const durata = DURATE_SERVIZI[p.servizio];
+      const [h, m] = p.ora.split(":").map(Number);
+      let start = h * 60 + m;
+
+      for (let i = 0; i < durata; i += 15) {
+        let tot = start + i;
+        let hh = Math.floor(tot / 60);
+        let mm = tot % 60;
+        let mmStr = mm.toString().padStart(2, "0");
+        slots.push(`${hh}:${mmStr}`);
+      }
+    });
+
+    setOccupiedSlots(slots);
+  };
 
   /* ================= PRENOTAZIONE ================= */
 
@@ -114,13 +141,6 @@ const generaOrari = () => {
     }
 
     const today = new Date().toISOString().split("T")[0];
-    const dataSelezionata = new Date(form.data);
-const giorno = dataSelezionata.getDay();
-
-if (giorno === 0 || giorno === 1) {
-  alert("Il salone è chiuso la Domenica e il Lunedì.");
-  return;
-}
     if (form.data < today) {
       alert("Non puoi prenotare giorni passati.");
       return;
@@ -178,60 +198,30 @@ if (giorno === 0 || giorno === 1) {
     setMiePrenotazioni(data || []);
   };
 
-const fetchPrenotazioni = async () => {
-  const { data } = await supabase
-    .from("prenotazioni")
-    .select("*")
-    .order("data", { ascending: true });
+  const fetchPrenotazioni = async () => {
+    const { data } = await supabase
+      .from("prenotazioni")
+      .select("*")
+      .order("data", { ascending: true });
 
-  setPrenotazioni(data || []);
-};
+    setPrenotazioni(data || []);
+  };
 
-const fetchOccupiedSlots = async () => {
-  const { data } = await supabase
-    .from("prenotazioni")
-    .select("*")
-    .eq("data", form.data)
-    .eq("parrucchiere", form.parrucchiere)
-    .neq("stato", "rifiutata");
+  const updateStato = async (id, stato) => {
+    await supabase
+      .from("prenotazioni")
+      .update({ stato })
+      .eq("id", id);
 
-  if (!data) return;
+    fetchPrenotazioni();
+  };
 
-  let slots = [];
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    location.reload();
+  };
 
-  for (let p of data) {
-    const durata = DURATE_SERVIZI[p.servizio];
-    const [h, m] = p.ora.split(":").map(Number);
-
-    let start = h * 60 + m;
-
-    for (let i = 0; i < durata; i += 15) {
-      let minutiTotali = start + i;
-      let ore = Math.floor(minutiTotali / 60);
-      let minuti = minutiTotali % 60;
-      let minutiStr =
-        minuti === 0 ? "00" : minuti.toString().padStart(2, "0");
-
-      slots.push(`${ore}:${minutiStr}`);
-    }
-  }
-
-  setOccupiedSlots(slots);
-};
-
-const updateStato = async (id, stato) => {
-  await supabase
-    .from("prenotazioni")
-    .update({ stato })
-    .eq("id", id);
-
-  fetchPrenotazioni();
-};
-
-const signOut = async () => {
-  await supabase.auth.signOut();
-  location.reload();
-};
+  if (!user) return <Auth onLogin={checkUser} />;
 
   /* ================= ADMIN ================= */
 
@@ -313,13 +303,16 @@ const signOut = async () => {
   minDate={new Date()}
   tileDisabled={({ date }) => {
     const day = date.getDay();
-    return day === 0 || day === 1;
+    return day === 0 || day === 1; // 0 = Domenica, 1 = Lunedì chiusi
   }}
-  onChange={(date) => {
-    const localDate = date.toLocaleDateString("sv-SE");
-    setForm({ ...form, data: localDate });
-  }}
+  onChange={(date) =>
+    setForm({
+      ...form,
+      data: date.toLocaleDateString("sv-SE") // evita bug timezone
+    })
+  }
 />
+
         <select className="w-full border p-2 mt-3 rounded-lg"
           value={form.ora}
           onChange={(e) => setForm({ ...form, ora: e.target.value })}
