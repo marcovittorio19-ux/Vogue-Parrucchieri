@@ -169,7 +169,7 @@ export default function App() {
       { ...form, user_id: user.id, stato: "in attesa" }
     ]);
 
-    alert("Prenotazione inviata!");
+    alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione e ricarica il sito");
 
     fetchOccupiedSlots();
     fetchMiePrenotazioni(user.id);
