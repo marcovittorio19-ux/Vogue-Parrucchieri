@@ -1,19 +1,7 @@
 self.addEventListener("push", function (event) {
-  const data = event.data.json();
+  const data = event.data?.json() || {};
 
-  self.registration.showNotification(data.title, {
-    body: data.body,
-    icon: "/logo.png",
-    badge: "/logo.png",
-    data: {
-      url: data.url
-    }
+  self.registration.showNotification(data.title || "Vogue Booking", {
+    body: data.body || "Nuova notifica",
   });
-});
-
-self.addEventListener("notificationclick", function (event) {
-  event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url)
-  );
 });
