@@ -279,11 +279,11 @@ const subscription = await registration.pushManager.subscribe({
         }
       ]);
 
-    if (error) {
-      console.log("ERRORE SUPABASE:", error);
-      alert("Errore salvataggio");
-      return;
-    }
+if (error) {
+  console.log("ERRORE SUPABASE:", error);
+  alert("Errore: " + error.message);
+  return;
+}
 
     alert("Notifiche attivate 🔥");
   } catch (err) {
