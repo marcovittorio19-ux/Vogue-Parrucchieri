@@ -172,6 +172,14 @@ const generaOrari = () => {
     await supabase.from("prenotazioni").insert([
       { ...form, user_id: user.id, stato: "in attesa" }
     ]);
+    // 🔔 Notifica admin
+await supabase.functions.invoke("send-notification", {
+  body: {
+    title: "Nuova prenotazione",
+    body: `${form.nome} ha prenotato ${form.servizio}`,
+    user_id: "44079e9b-5174-4ece-ac4c-48dfbfe56778"
+  }
+});
 
     alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione e ricarica il sito");
 
@@ -207,14 +215,41 @@ const generaOrari = () => {
     setPrenotazioni(data || []);
   };
 
-  const updateStato = async (id, stato) => {
-    await supabase
-      .from("prenotazioni")
-      .update({ stato })
-      .eq("id", id);
+const updateStato = async (id, stato) => {
+  await supabase
+    .from("prenotazioni")
+    .update({ stato })
+    .eq("id", id);
 
-    fetchPrenotazioni();
-  };
+  // recupera la prenotazione aggiornata
+  const { data } = await supabase
+    .from("prenotazioni")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (stato === "accettata") {
+    await supabase.functions.invoke("send-notification", {
+      body: {
+        title: "Prenotazione accettata ✅",
+        body: "La tua prenotazione è stata confermata!",
+        user_id: data.user_id
+      }
+    });
+  }
+
+  if (stato === "rifiutata") {
+    await supabase.functions.invoke("send-notification", {
+      body: {
+        title: "Prenotazione rifiutata ❌",
+        body: "La tua prenotazione è stata rifiutata.",
+        user_id: data.user_id
+      }
+    });
+  }
+
+  fetchPrenotazioni();
+};
 
   const signOut = async () => {
     await supabase.auth.signOut();
