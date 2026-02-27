@@ -172,14 +172,21 @@ const generaOrari = () => {
     await supabase.from("prenotazioni").insert([
       { ...form, user_id: user.id, stato: "in attesa" }
     ]);
-    // 🔔 Notifica admin
-await supabase.functions.invoke("send-notification", {
-  body: {
-    title: "Nuova prenotazione",
-    body: `${form.nome} ha prenotato ${form.servizio}`,
-    user_id: "44079e9b-5174-4ece-ac4c-48dfbfe56778"
-  }
-});
+  // 🔔 Notifica a tutti gli admin
+const { data: admins } = await supabase
+  .from("profiles")
+  .select("id")
+  .eq("role", "admin");
+
+for (let admin of admins || []) {
+  await supabase.functions.invoke("send-notification", {
+    body: {
+      title: "Nuova prenotazione 📅",
+      body: `${form.nome} ha prenotato ${form.servizio}`,
+      user_id: admin.id
+    }
+  });
+}
 
     alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione e ricarica il sito");
 
@@ -330,10 +337,17 @@ if (error) {
 
   /* ================= ADMIN ================= */
 
-  if (role === "admin")
-    return (
-      <div className="min-h-screen bg-gray-100 p-8">
-        <h1 className="text-3xl font-bold mb-6">Dashboard Admin</h1>
+if (role === "admin")
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <h1 className="text-3xl font-bold mb-6">Dashboard Admin</h1>
+
+      <button
+        onClick={attivaNotifiche}
+        className="mb-6 bg-green-600 text-white px-4 py-2 rounded-xl"
+      >
+        Attiva notifiche
+      </button>
 
         {prenotazioni.map((p) => (
           <div key={p.id} className="bg-white p-5 mb-4 rounded-xl shadow-lg">
