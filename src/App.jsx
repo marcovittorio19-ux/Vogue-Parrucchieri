@@ -221,7 +221,7 @@ for (let admin of admins || []) {
 
     setPrenotazioni(data || []);
   };
-
+//
 const updateStato = async (id, stato) => {
   await supabase
     .from("prenotazioni")
