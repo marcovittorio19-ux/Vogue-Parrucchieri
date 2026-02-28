@@ -190,7 +190,7 @@ await supabase.functions.invoke("send-notification", {
     type: "new_booking"
   }
 });
-    alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione e ricarica il sito");
+    alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione. Non dimenticarti di cliccare il tasto verde ATTIVA NOTIFICHE cosi rimarrai aggiornato in tempo reale.");
 
     fetchOccupiedSlots();
     fetchMiePrenotazioni(user.id);
