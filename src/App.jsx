@@ -20,6 +20,7 @@ export default function App() {
   const [prenotazioni, setPrenotazioni] = useState([]);
   const [miePrenotazioni, setMiePrenotazioni] = useState([]);
   const [occupiedSlots, setOccupiedSlots] = useState([]);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
 
   const [form, setForm] = useState({
     nome: "",
@@ -33,6 +34,17 @@ export default function App() {
   useEffect(() => {
     checkUser();
   }, []);
+  useEffect(() => {
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  const alreadySeen = localStorage.getItem("installGuideSeen");
+
+  if (!isStandalone && !alreadySeen) {
+    setShowInstallGuide(true);
+  }
+}, []);
 
   useEffect(() => {
     if (form.data && form.parrucchiere) {
@@ -320,7 +332,51 @@ if (error) {
     console.log("ERRORE:", err);
   }
 };
+const InstallGuide = () => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isIOS = /iphone|ipad|ipod/.test(userAgent);
+  const isAndroid = /android/.test(userAgent);
 
+  const closeGuide = () => {
+    localStorage.setItem("installGuideSeen", "true");
+    setShowInstallGuide(false);
+  };
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-black text-white p-4 z-50 rounded-t-2xl shadow-2xl">
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="font-bold text-lg mb-2">
+            Aggiungi Vogue Parrucchieri alla Home 📲
+          </h3>
+
+          {isIOS && (
+            <p className="text-sm">
+              1️⃣ Tocca Condividi in basso  
+              2️⃣ Premi "Aggiungi alla schermata Home"  
+              3️⃣ Tocca Aggiungi
+            </p>
+          )}
+
+          {isAndroid && (
+            <p className="text-sm">
+              1️⃣ Tocca i tre puntini in alto  
+              2️⃣ Premi "Aggiungi alla schermata Home"  
+              3️⃣ Conferma con Aggiungi
+            </p>
+          )}
+        </div>
+
+        <button
+          onClick={closeGuide}
+          className="ml-4 text-red-400 font-bold"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+};
   if (!user) return <Auth onLogin={checkUser} />;
 
   /* ================= ADMIN ================= */
@@ -359,6 +415,9 @@ if (role === "admin")
         <button onClick={signOut} className="mt-6 bg-black text-white px-4 py-2 rounded-xl">
           Logout
         </button>
+
+      {showInstallGuide && <InstallGuide />}
+
       </div>
     );
 
@@ -452,11 +511,15 @@ if (role === "admin")
           </div>
         ))}
 
-        <button onClick={signOut}
+        <button
+          onClick={signOut}
           className="w-full mt-6 bg-gray-300 p-2 rounded-xl">
           Logout
         </button>
       </div>
+
+      {showInstallGuide && <InstallGuide />}
+
     </div>
   );
 }
