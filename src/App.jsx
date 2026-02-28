@@ -190,7 +190,7 @@ await supabase.functions.invoke("send-notification", {
     type: "new_booking"
   }
 });
-    alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione. Non dimenticarti di cliccare il tasto verde ATTIVA NOTIFICHE cosi rimarrai aggiornato in tempo reale.");
+    alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione. Non dimenticarti di cliccare il tasto verde ATTIVA NOTIFICHE e rimarrai aggiornato in tempo reale.");
 
     fetchOccupiedSlots();
     fetchMiePrenotazioni(user.id);
@@ -537,7 +537,7 @@ function Auth({ onLogin }) {
 
   const register = async () => {
     const { error } = await supabase.auth.signUp({ email, password });
-    if (!error) alert("Controlla la mail per confermare l'account.");
+    if (!error) alert("Controlla la mail per confermare l'account. Se non è arrivata la mail controlla di aver inserito correttamente la email o la cartella spam.");
   };
 
   return (
