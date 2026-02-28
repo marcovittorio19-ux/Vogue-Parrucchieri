@@ -406,30 +406,50 @@ if (role === "admin")
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <h1 className="text-3xl font-bold mb-6">Dashboard Admin</h1>
-      <div className="flex gap-4 mb-6">
-  <input
-    type="date"
-    value={filtroData}
-    onChange={(e) => setFiltroData(e.target.value)}
-    className="border p-2 rounded-lg"
-  />
+<div className="bg-white p-4 rounded-xl shadow mb-6">
+  <div className="flex gap-6 items-end">
 
-  <input
-    type="month"
-    value={filtroMese}
-    onChange={(e) => setFiltroMese(e.target.value)}
-    className="border p-2 rounded-lg"
-  />
+    <div className="flex flex-col">
+      <label className="text-sm font-semibold mb-1">
+        Filtro per giorno
+      </label>
+      <input
+        type="date"
+        value={filtroData}
+        onChange={(e) => {
+          setFiltroData(e.target.value);
+          setFiltroMese(""); // evita conflitto
+        }}
+        className="border p-2 rounded-lg"
+      />
+    </div>
 
-  <button
-    onClick={() => {
-      setFiltroData("");
-      setFiltroMese("");
-    }}
-    className="bg-gray-300 px-3 rounded-lg"
-  >
-    Reset
-  </button>
+    <div className="flex flex-col">
+      <label className="text-sm font-semibold mb-1">
+        Filtro per mese
+      </label>
+      <input
+        type="month"
+        value={filtroMese}
+        onChange={(e) => {
+          setFiltroMese(e.target.value);
+          setFiltroData(""); // evita conflitto
+        }}
+        className="border p-2 rounded-lg"
+      />
+    </div>
+
+    <button
+      onClick={() => {
+        setFiltroData("");
+        setFiltroMese("");
+      }}
+      className="bg-gray-300 px-4 py-2 rounded-lg"
+    >
+      Reset
+    </button>
+
+  </div>
 </div>
 
       <button
