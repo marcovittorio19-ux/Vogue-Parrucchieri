@@ -589,48 +589,72 @@ const mieRifiutate = miePrenotazioni.filter(p => p.stato === "rifiutata");
             <option key={o}>{o}</option>
           ))}
         </select>
+        {form.data && form.parrucchiere && generaOrari().length === 0 && (
+  <p className="mt-3 text-red-500 font-semibold text-center">
+    Nessun orario disponibile per questa data
+  </p>
+)}
 
         <button onClick={prenota}
           className="w-full bg-black text-white p-3 mt-4 rounded-xl">
           Prenota
         </button>
 
-<h3 className="mt-6 font-bold text-lg">
-  In attesa ({mieInAttesa.length})
-</h3>
+{mieInAttesa.length > 0 && (
+  <>
+    <h3 className="mt-6 font-bold text-lg">
+      In attesa ({mieInAttesa.length})
+    </h3>
 
-{mieInAttesa.map((p) => (
-  <div key={p.id} className="bg-yellow-50 p-3 mt-2 rounded-xl border-l-4 border-yellow-400">
-    <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
-    <p>{p.data} • {p.ora}</p>
-    <p className="text-yellow-700 font-bold">In attesa</p>
-  </div>
-))}
+    {mieInAttesa.map((p) => (
+      <div key={p.id} className="bg-yellow-50 p-3 mt-2 rounded-xl border-l-4 border-yellow-400">
+        <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
+        <p>{p.data} • {p.ora}</p>
+        <p className="text-yellow-700 font-bold">In attesa</p>
+      </div>
+    ))}
+  </>
+)}
 
-<h3 className="mt-6 font-bold text-lg">
-  Accettate ({mieAccettate.length})
-</h3>
+        {mieAccettate.length > 0 && (
+  <>
+    <h3 className="mt-6 font-bold text-lg">
+      Accettate ({mieAccettate.length})
+    </h3>
 
-{mieAccettate.map((p) => (
-  <div key={p.id} className="bg-green-50 p-3 mt-2 rounded-xl border-l-4 border-green-500">
-    <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
-    <p>{p.data} • {p.ora}</p>
-    <p className="text-green-700 font-bold">Accettata</p>
-  </div>
-))}
+    {mieAccettate.map((p) => (
+      <div key={p.id} className="bg-green-50 p-3 mt-2 rounded-xl border-l-4 border-green-500">
+        <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
+        <p>{p.data} • {p.ora}</p>
+        <p className="text-green-700 font-bold">Accettata</p>
+      </div>
+    ))}
+  </>
+)}
 
-<h3 className="mt-6 font-bold text-lg">
-  Rifiutate ({mieRifiutate.length})
-</h3>
+        {mieRifiutate.length > 0 && (
+  <>
+    <h3 className="mt-6 font-bold text-lg">
+      Rifiutate ({mieRifiutate.length})
+    </h3>
 
-{mieRifiutate.map((p) => (
-  <div key={p.id} className="bg-red-50 p-3 mt-2 rounded-xl border-l-4 border-red-500">
-    <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
-    <p>{p.data} • {p.ora}</p>
-    <p className="text-red-700 font-bold">Rifiutata</p>
-  </div>
-))}
+    {mieRifiutate.map((p) => (
+      <div key={p.id} className="bg-red-50 p-3 mt-2 rounded-xl border-l-4 border-red-500">
+        <p className="font-semibold">{p.servizio} - {p.parrucchiere}</p>
+        <p>{p.data} • {p.ora}</p>
+        <p className="text-red-700 font-bold">Rifiutata</p>
+      </div>
+    ))}
+  </>
+)}
 
+        {miePrenotazioni.length === 0 && (
+  <p className="mt-6 text-center text-gray-500">
+    Non hai ancora prenotazioni.
+  </p>
+)}
+
+ 
         <button
           onClick={signOut}
           className="w-full mt-6 bg-gray-300 p-2 rounded-xl">
