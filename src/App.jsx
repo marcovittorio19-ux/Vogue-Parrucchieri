@@ -21,6 +21,8 @@ export default function App() {
   const [miePrenotazioni, setMiePrenotazioni] = useState([]);
   const [occupiedSlots, setOccupiedSlots] = useState([]);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const [filtroData, setFiltroData] = useState("");
+  const [filtroMese, setFiltroMese] = useState("");
 
   const [form, setForm] = useState({
     nome: "",
@@ -51,6 +53,13 @@ export default function App() {
       fetchOccupiedSlots();
     }
   }, [form.data, form.parrucchiere]);
+  
+useEffect(() => {
+  if (role === "admin") {
+    fetchPrenotazioni();
+  }
+}, [filtroData, filtroMese, role]);
+  
 
   const checkUser = async () => {
     const { data } = await supabase.auth.getUser();
@@ -215,14 +224,24 @@ await supabase.functions.invoke("send-notification", {
     setMiePrenotazioni(data || []);
   };
 
-  const fetchPrenotazioni = async () => {
-    const { data } = await supabase
-      .from("prenotazioni")
-      .select("*")
-      .order("data", { ascending: true });
+const fetchPrenotazioni = async () => {
+  let query = supabase
+    .from("prenotazioni")
+    .select("*")
+    .order("data", { ascending: true })
+    .order("ora", { ascending: true }); // 👈 aggiunta ordinamento per orario
 
-    setPrenotazioni(data || []);
-  };
+  if (filtroData) {
+    query = query.eq("data", filtroData);
+  }
+
+  if (filtroMese) {
+    query = query.like("data", `${filtroMese}%`);
+  }
+
+  const { data } = await query;
+  setPrenotazioni(data || []);
+};
 //
 const updateStato = async (id, stato) => {
   await supabase
@@ -380,11 +399,38 @@ const InstallGuide = () => {
   if (!user) return <Auth onLogin={checkUser} />;
 
   /* ================= ADMIN ================= */
-
+const prenotazioniInAttesa = prenotazioni.filter(p => p.stato === "in attesa");
+const prenotazioniAccettate = prenotazioni.filter(p => p.stato === "accettata");
+const prenotazioniRifiutate = prenotazioni.filter(p => p.stato === "rifiutata");
 if (role === "admin")
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <h1 className="text-3xl font-bold mb-6">Dashboard Admin</h1>
+      <div className="flex gap-4 mb-6">
+  <input
+    type="date"
+    value={filtroData}
+    onChange={(e) => setFiltroData(e.target.value)}
+    className="border p-2 rounded-lg"
+  />
+
+  <input
+    type="month"
+    value={filtroMese}
+    onChange={(e) => setFiltroMese(e.target.value)}
+    className="border p-2 rounded-lg"
+  />
+
+  <button
+    onClick={() => {
+      setFiltroData("");
+      setFiltroMese("");
+    }}
+    className="bg-gray-300 px-3 rounded-lg"
+  >
+    Reset
+  </button>
+</div>
 
       <button
         onClick={attivaNotifiche}
@@ -393,25 +439,50 @@ if (role === "admin")
         Attiva notifiche
       </button>
 
-        {prenotazioni.map((p) => (
-          <div key={p.id} className="bg-white p-5 mb-4 rounded-xl shadow-lg">
-            <p className="font-bold text-lg">{p.nome}</p>
-            <p className="text-gray-600">📞 {p.telefono}</p>
-            <p>{p.servizio} - {p.parrucchiere}</p>
-            <p>{p.data} • {p.ora}</p>
-            <p className="mt-2 font-semibold">{p.stato}</p>
+<h2 className="text-xl font-bold mb-3">
+  In attesa ({prenotazioniInAttesa.length})
+</h2>
+{prenotazioniInAttesa.map((p) => (
+  <div key={p.id} className="bg-yellow-50 p-5 mb-4 rounded-xl shadow-lg border-l-4 border-yellow-400">
+    <p className="font-bold text-lg">{p.nome}</p>
+    <p>📞 {p.telefono}</p>
+    <p>{p.servizio} - {p.parrucchiere}</p>
+    <p>{p.data} • {p.ora}</p>
 
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => updateStato(p.id, "accettata")} className="bg-green-600 text-white px-3 py-1 rounded-lg">
-                Accetta
-              </button>
-              <button onClick={() => updateStato(p.id, "rifiutata")} className="bg-red-600 text-white px-3 py-1 rounded-lg">
-                Rifiuta
-              </button>
-            </div>
-          </div>
-        ))}
+    <div className="mt-3 flex gap-2">
+      <button onClick={() => updateStato(p.id, "accettata")} className="bg-green-600 text-white px-3 py-1 rounded-lg">
+        Accetta
+      </button>
+      <button onClick={() => updateStato(p.id, "rifiutata")} className="bg-red-600 text-white px-3 py-1 rounded-lg">
+        Rifiuta
+      </button>
+    </div>
+  </div>
+))}
 
+<h2 className="text-xl font-bold mt-8 mb-3">
+  Accettate ({prenotazioniAccettate.length})
+</h2>
+{prenotazioniAccettate.map((p) => (
+  <div key={p.id} className="bg-green-50 p-5 mb-4 rounded-xl shadow border-l-4 border-green-500">
+    <p className="font-bold">{p.nome}</p>
+    <p>{p.servizio} - {p.parrucchiere}</p>
+    <p>{p.data} • {p.ora}</p>
+  </div>
+))}
+
+<h2 className="text-xl font-bold mt-8 mb-3">
+  Rifiutate ({prenotazioniRifiutate.length})
+</h2>
+{prenotazioniRifiutate.map((p) => (
+  <div key={p.id} className="bg-red-50 p-5 mb-4 rounded-xl shadow border-l-4 border-red-500">
+    <p className="font-bold">{p.nome}</p>
+    <p>{p.servizio} - {p.parrucchiere}</p>
+    <p>{p.data} • {p.ora}</p>
+  </div>
+))}
+
+      
         <button onClick={signOut} className="mt-6 bg-black text-white px-4 py-2 rounded-xl">
           Logout
         </button>
