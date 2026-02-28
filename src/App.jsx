@@ -19,7 +19,6 @@ export default function App() {
   const [role, setRole] = useState(null);
   const [prenotazioni, setPrenotazioni] = useState([]);
   const [miePrenotazioni, setMiePrenotazioni] = useState([]);
-  const [occupiedSlots, setOccupiedSlots] = useState([]);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [filtroData, setFiltroData] = useState("");
   const [filtroMese, setFiltroMese] = useState("");
@@ -48,14 +47,10 @@ export default function App() {
   }
 }, []);
 
-  useEffect(() => {
-    if (form.data && form.parrucchiere) {
-      fetchOccupiedSlots();
-    }
-  }, [form.data, form.parrucchiere]);
+
   
 useEffect(() => {
-  if (role === "admin") {
+  if (role) {
     fetchPrenotazioni();
   }
 }, [filtroData, filtroMese, role]);
@@ -91,15 +86,19 @@ useEffect(() => {
 
   /* ================= ORARI 15 MINUTI ================= */
 
+const convertiInMinuti = (orario) => {
+  const [ore, minuti] = orario.split(":").map(Number);
+  return ore * 60 + minuti;
+};
+
 const generaOrari = () => {
-  if (!form.data) return [];
+  if (!form.data || !form.parrucchiere || !form.servizio) return [];
 
   const giorno = new Date(form.data).getDay();
 
-  // Domenica (0) e Lunedì (1) chiusi
+  // Domenica e Lunedì chiusi
   if (giorno === 0 || giorno === 1) return [];
 
-  // Sabato inizia alle 7:30
   let startMinutes = giorno === 6 ? 7 * 60 + 30 : 8 * 60;
   let endMinutes = 20 * 60;
 
@@ -109,42 +108,36 @@ const generaOrari = () => {
     let ore = Math.floor(i / 60);
     let minuti = i % 60;
     let minutiStr = minuti.toString().padStart(2, "0");
-    let slot = `${ore}:${minutiStr}`;
-
-    if (!occupiedSlots.includes(slot)) {
-      orari.push(slot);
-    }
+    orari.push(`${ore}:${minutiStr}`);
   }
 
-  return orari;
+  const prenotazioniDelGiorno = prenotazioni.filter(
+    (p) =>
+      p.data === form.data &&
+      p.parrucchiere === form.parrucchiere &&
+      p.stato !== "rifiutata"
+  );
+
+  return orari.filter((orarioCorrente) => {
+    const inizioCorrente = convertiInMinuti(orarioCorrente);
+    const durataCorrente = DURATE_SERVIZI[form.servizio] || 30;
+    const fineCorrente = inizioCorrente + durataCorrente;
+
+    for (let p of prenotazioniDelGiorno) {
+      const inizioPrenotazione = convertiInMinuti(p.ora);
+      const durataPrenotazione = DURATE_SERVIZI[p.servizio] || 30;
+      const finePrenotazione = inizioPrenotazione + durataPrenotazione;
+
+      const sovrapposto =
+        inizioCorrente < finePrenotazione &&
+        fineCorrente > inizioPrenotazione;
+
+      if (sovrapposto) return false;
+    }
+
+    return true;
+  });
 };
-
-  const fetchOccupiedSlots = async () => {
-    const { data } = await supabase
-      .from("prenotazioni")
-      .select("*")
-      .eq("data", form.data)
-      .eq("parrucchiere", form.parrucchiere)
-      .neq("stato", "rifiutata");
-
-    let slots = [];
-
-    data?.forEach(p => {
-      const durata = DURATE_SERVIZI[p.servizio];
-      const [h, m] = p.ora.split(":").map(Number);
-      let start = h * 60 + m;
-
-      for (let i = 0; i < durata; i += 15) {
-        let tot = start + i;
-        let hh = Math.floor(tot / 60);
-        let mm = tot % 60;
-        let mmStr = mm.toString().padStart(2, "0");
-        slots.push(`${hh}:${mmStr}`);
-      }
-    });
-
-    setOccupiedSlots(slots);
-  };
 
   /* ================= PRENOTAZIONE ================= */
 
@@ -201,7 +194,6 @@ await supabase.functions.invoke("send-notification", {
 });
     alert("Prenotazione inviata! Attendi che uno dei nostri parrucchieri accetti o rifiuti la tua prenotazione. Non dimenticarti di cliccare il tasto verde ATTIVA NOTIFICHE e rimarrai aggiornato in tempo reale.");
 
-    fetchOccupiedSlots();
     fetchMiePrenotazioni(user.id);
 
     setForm({
@@ -240,6 +232,18 @@ const fetchPrenotazioni = async () => {
   }
 
   const { data } = await query;
+  setPrenotazioni(data || []);
+};
+  const fetchPrenotazioniGiorno = async () => {
+  if (!form.data || !form.parrucchiere) return;
+
+  const { data } = await supabase
+    .from("prenotazioni")
+    .select("*")
+    .eq("data", form.data)
+    .eq("parrucchiere", form.parrucchiere)
+    .neq("stato", "rifiutata");
+
   setPrenotazioni(data || []);
 };
 //
@@ -396,6 +400,11 @@ const InstallGuide = () => {
     </div>
   );
 };
+  useEffect(() => {
+  if (role === "user" && form.data && form.parrucchiere) {
+    fetchPrenotazioniGiorno();
+  }
+}, [form.data, form.parrucchiere]);
   if (!user) return <Auth onLogin={checkUser} />;
 
   /* ================= ADMIN ================= */
